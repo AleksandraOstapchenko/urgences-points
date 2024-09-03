@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte Leaflet avec Itinéraire</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        #info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="info">
+        <button id="findNearest">Trouver l'itinéraire vers le point le plus proche</button>
+        <p id="status"></p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+        const map = L.map('map').setView([48.8566, 2.3522], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let userLocation;
+        const points = [
+    { lat: 49.161651381366966, lng: 4.111542085116619, name: "MAILLY 4" },
+    { lat: 49.1589, lng: 4.1247, name: "MAILLY 3" },
+    { lat: 49.158, lng: 4.152, name: "VERZ 5" }
+        ];
+        const markers = [];
+
+        function onLocationFound(e) {
+            userLocation = e.latlng;
+            L.marker(userLocation).addTo(map)
+                .bindPopup('Vous êtes ici')
+                .openPopup();
+            
+            // Affichage des points
+            displayPoints();
+        }
+
+        function onLocationError(e) {
+            document.getElementById('status').textContent = `Erreur de géolocalisation: ${e.message}`;
+        }
+
+        function displayPoints() {
+            points.forEach(point => {
+                const marker = L.marker([point.lat, point.lng])
+                    .addTo(map)
+                    .bindPopup(point.name);
+                markers.push(marker);
+            });
+        }
+
+        function findNearestPoint() {
+            if (!userLocation) {
+                document.getElementById('status').textContent = "Localisation utilisateur non disponible.";
+                return;
+            }
+
+            let nearestPoint = null;
+            let minDistance = Infinity;
+
+            points.forEach(point => {
+                const distance = map.distance(userLocation, [point.lat, point.lng]);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestPoint = point;
+                }
+            });
+
+            if (nearestPoint) {
+                L.marker([nearestPoint.lat, nearestPoint.lng], {
+                    icon: L.icon({ iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png', iconSize: [25, 41], iconAnchor: [12, 41] })
+                }).addTo(map).bindPopup('Point le plus proche').openPopup();
+
+                createRoute(nearestPoint);
+            } else {
+                document.getElementById('status').textContent = "Aucun point disponible.";
+            }
+        }
+
+        function createRoute(destination) {
+            L.Routing.control({
+                waypoints: [
+                    L.latLng(userLocation),
+                    L.latLng(destination.lat, destination.lng)
+                ],
+                routeWhileDragging: true
+            }).addTo(map);
+        }
+
+        document.getElementById('findNearest').addEventListener('click', () => {
+            findNearestPoint();
+        });
+
+        // Initialisation de la carte et de la géolocalisation
+        function initMap() {
+            map.locate({ setView: true, maxZoom: 16 });
+
+            map.on('locationfound', onLocationFound);
+            map.on('locationerror', onLocationError);
+        }
+
+        initMap();
+    </script>
+</body>
+</html>
